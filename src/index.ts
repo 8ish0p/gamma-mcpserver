@@ -118,14 +118,13 @@ server.tool(
 );
 
 async function main() {
-  const transport = new HttpServerTransport({
-  port: process.env.PORT || 8080,
-});
+  const port = process.env.PORT || 8080;
+  const transport = new HttpServerTransport({ port });
   await server.connect(transport);
-  console.error("Gamma MCP Server running on stdio");
+  console.log(`Gamma MCP Server running on port ${port}`);
 
-  // logt the  api key
-  console.log("Gamma API Key:", GAMMA_API_KEY);
+  // Optional: confirm your API key is loaded
+  console.log("Gamma API Key:", GAMMA_API_KEY ? "Loaded ✅" : "Missing ❌");
 }
 
 main().catch((error) => {
