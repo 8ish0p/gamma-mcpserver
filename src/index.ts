@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { HttpServerTransport } from "@modelcontextprotocol/sdk/server/http.js";
 import { z } from "zod";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
@@ -118,7 +118,9 @@ server.tool(
 );
 
 async function main() {
-  const transport = new StdioServerTransport();
+  const transport = new HttpServerTransport({
+  port: process.env.PORT || 8080,
+});
   await server.connect(transport);
   console.error("Gamma MCP Server running on stdio");
 
