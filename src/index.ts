@@ -8,7 +8,7 @@ dotenv.config();
 const GAMMA_API_URL = "https://api.gamma.app/public-api/v0.1/generate";
 const GAMMA_API_KEY = process.env.GAMMA_API_KEY;
 
-// Helper function for making Gamma API requests
+// Helper function for Gamma API
 async function generatePresentation(
   params: Record<string, any>
 ): Promise<{ url: string | null; error: string | null }> {
@@ -21,12 +21,12 @@ async function generatePresentation(
       },
       body: JSON.stringify(params),
     });
+
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `HTTP error! status: ${response.status}, body: ${errorText}`
-      );
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
+
     const data = (await response.json()) as { url?: string };
     return { url: data.url || null, error: null };
   } catch (error: any) {
@@ -35,98 +35,64 @@ async function generatePresentation(
   }
 }
 
-// Create server instance
-const server = new McpServer({
-  name: "gamma-presentation",
-  version: "1.0.0",
-  capabilities: {
-    resources: {},
-    tools: {},
-  },
-});
+async function main() {
+  const port = process.env.PORT || 8080;
 
-// Register Gamma generation tool
-server.tool(
-  "generate-presentation",
-  "Generate a presentation using the Gamma API. The response will include a link to the generated presentation in the 'text' field. Always include the link in the response when it's available. Do your best to show a preview or a link preview or some sense of the content to the user in the response.",
-  {
-    inputText: z.string().describe("The topic or prompt for the presentation."),
-    tone: z
-      .string()
-      .optional()
-      .describe(
-        "The tone of the presentation (e.g. 'humorous and sarcastic')."
-      ),
-    audience: z
-      .string()
-      .optional()
-      .describe("The intended audience (e.g. 'students')."),
-    textAmount: z
-      .enum(["short", "medium", "long"])
-      .optional()
-      .describe("How much text to generate."),
-    textMode: z
-      .enum(["generate", "summarize"])
-      .optional()
-      .describe("Text mode for Gamma API."),
-    numCards: z
-      .number()
-      .min(1)
-      .max(20)
-      .optional()
-      .describe("Number of slides/cards to generate."),
-    imageModel: z
-      .string()
-      .optional()
-      .describe("Image model to use (e.g. 'dall-e-3')."),
-    imageStyle: z
-      .string()
-      .optional()
-      .describe("Image style (e.g. 'line drawings')."),
-    editorMode: z
-      .string()
-      .optional()
-      .describe("Editor mode (e.g. 'freeform')."),
-    additionalInstructions: z
-      .string()
-      .optional()
-      .describe("Any extra instructions for Gamma."),
-  },
-  async (params) => {
-    const { url, error } = await generatePresentation(params);
-    if (!url) {
+  const transport = new HttpServerTransport({
+    port,
+    auth: false, // disable auth for now
+  });
+
+  const server = new McpServer({
+    name: "gamma-presentation",
+    version: "1.0.0",
+    capabilities: {
+      resources: {},
+      tools: {},
+    },
+  });
+
+  // Register the tool
+  server.tool(
+    "generate-presentation",
+    "Generate a presentation using the Gamma API. Returns a link to the presentation.",
+    {
+      inputText: z.string().describe("The topic or prompt for the presentation."),
+      tone: z.string().optional().describe("Tone of the presentation."),
+      audience: z.string().optional().describe("Intended audience."),
+      textAmount: z.enum(["short", "medium", "long"]).optional(),
+      textMode: z.enum(["generate", "summarize"]).optional(),
+      numCards: z.number().min(1).max(20).optional(),
+      imageModel: z.string().optional(),
+      imageStyle: z.string().optional(),
+      editorMode: z.string().optional(),
+      additionalInstructions: z.string().optional(),
+    },
+    async (params) => {
+      const { url, error } = await generatePresentation(params);
+      if (!url) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Failed to generate presentation: ${error || "Unknown error."}`,
+            },
+          ],
+        };
+      }
       return {
         content: [
           {
             type: "text",
-            text: `Failed to generate presentation using Gamma API. Error: ${
-              error || "Unknown error."
-            }`,
+            text: `✅ Presentation generated! View it here: ${url}`,
           },
         ],
       };
     }
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Presentation generated! View it here: ${url}`,
-        },
-      ],
-    };
-  }
-);
+  );
 
-async function main() {
-  const port = process.env.PORT || 8080;
-  const transport = new HttpServerTransport({
-  port: process.env.PORT || 8080,
-});
   await server.connect(transport);
-  console.log(`Gamma MCP Server running on port ${port}`);
-
-  // Optional: confirm your API key is loaded
-  console.log("Gamma API Key:", GAMMA_API_KEY ? "Loaded ✅" : "Missing ❌");
+  console.log(`Gamma MCP Server listening on port ${port}`);
 }
 
 main().catch((error) => {
