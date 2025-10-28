@@ -119,7 +119,9 @@ server.tool(
 
 async function main() {
   const port = process.env.PORT || 8080;
-  const transport = new HttpServerTransport({ port });
+  const transport = new HttpServerTransport({
+  port: process.env.PORT || 8080,
+});
   await server.connect(transport);
   console.log(`Gamma MCP Server running on port ${port}`);
 
